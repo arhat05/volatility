@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: volatility
+      POSTGRES_PASSWORD: volatility
+      POSTGRES_DB: volatility
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Airflow services
+  airflow-webserver:
+    image: apache/airflow:2.5.0
+    depends_on:
+      - postgres
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://volatility:volatility@postgres/volatility
+      - AIRFLOW__CORE__FERNET_KEY=''
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
+    volumes:
+      - ./airflow_dags:/opt/airflow/dags
+      - ./src:/opt/airflow/src
+    ports:
+      - "8080:8080"
+    command: webserver
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  airflow-scheduler:
+    image: apache/airflow:2.5.0
+    depends_on:
+      - airflow-webserver
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://volatility:volatility@postgres/volatility
+      - AIRFLOW__CORE__FERNET_KEY=''
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
+    volumes:
+      - ./airflow_dags:/opt/airflow/dags
+      - ./src:/opt/airflow/src
+    command: scheduler
+
+  # Streamlit dashboard
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=volatility
+      - POSTGRES_PASSWORD=volatility
+      - POSTGRES_DB=volatility
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data: 
