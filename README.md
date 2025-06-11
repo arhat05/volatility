@@ -37,7 +37,7 @@ financial-volatility-forecasting/
 
 ## Getting Started
 
-### Prerequisites
+### Prereqs
 
 - Python 3.8+
 - Docker
